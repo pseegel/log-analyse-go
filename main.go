@@ -7,8 +7,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
+
+const numWorkers = 5
+
+type Result struct {
+	Line   string
+	Status int
+}
 
 func produce(ctx context.Context, path string, out chan<- string) error {
 
@@ -38,7 +46,32 @@ func produce(ctx context.Context, path string, out chan<- string) error {
 	return nil
 }
 
+func worker(ctx context.Context, wg *sync.WaitGroup, in <-chan string, out chan<- Result) {
+	defer wg.Done()
+
+	for {
+		select {
+		case line, ok := <-in:
+			if !ok {
+				// Channel geschlossen, alle Zeilen gelesen
+				return
+			}
+			// line verarbeiten
+			result := Result{Line: line, Status: 0}
+			select {
+			case out <- result:
+				// Ergebnis gesendet, weiter
+			case <-ctx.Done():
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 func main() {
+
 	var (
 		inputPath  string
 		outputPath string
@@ -56,13 +89,26 @@ func main() {
 	lines := make(chan string, 100)
 
 	go func() {
-
 		if err := produce(ctx, inputPath, lines); err != nil {
 			log.Printf("producer error: %v", err)
 		}
 	}()
 
-	for line := range lines {
-		log.Println(line)
+	wg := sync.WaitGroup{}
+	wg.Add(numWorkers)
+
+	results := make(chan Result, 100)
+
+	for i := 0; i < numWorkers; i++ {
+		go worker(ctx, &wg, lines, results)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for result := range results {
+		log.Println(result)
 	}
 }
