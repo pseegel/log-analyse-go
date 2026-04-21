@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
 const numWorkers = 5
+const numFields = 6
 
 type Result struct {
 	Line   string
@@ -46,6 +49,26 @@ func produce(ctx context.Context, path string, out chan<- string) error {
 	return nil
 }
 
+func parseLine(line string) (Result, error) {
+
+	fields := strings.Fields(line)
+	if len(fields) != numFields {
+		return Result{Line: line}, fmt.Errorf("malformed line %q: expected %d fields, got %d", line, numFields, len(fields))
+	}
+
+	status, err := strconv.Atoi(fields[4])
+	if err != nil {
+		return Result{Line: line}, fmt.Errorf("status not valid: %w", err)
+	}
+
+	result := Result{
+		Line:   line,
+		Status: status,
+	}
+
+	return result, nil
+}
+
 func worker(ctx context.Context, wg *sync.WaitGroup, in <-chan string, out chan<- Result) {
 	defer wg.Done()
 
@@ -56,8 +79,11 @@ func worker(ctx context.Context, wg *sync.WaitGroup, in <-chan string, out chan<
 				// Channel geschlossen, alle Zeilen gelesen
 				return
 			}
-			// line verarbeiten
-			result := Result{Line: line, Status: 0}
+			result, err := parseLine(line)
+			if err != nil {
+				log.Printf("parse error: %v", err)
+				continue
+			}
 			select {
 			case out <- result:
 				// Ergebnis gesendet, weiter
