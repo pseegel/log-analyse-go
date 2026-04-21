@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -13,12 +14,18 @@ import (
 	"time"
 )
 
-const numWorkers = 5
-const numFields = 6
+const (
+	numWorkers = 5
+	numFields  = 6
+)
 
 type Result struct {
 	Line   string
 	Status int
+}
+
+type Report struct {
+	StatusCounts map[int]int `json:"status_counts"`
 }
 
 func produce(ctx context.Context, path string, out chan<- string) error {
@@ -96,6 +103,28 @@ func worker(ctx context.Context, wg *sync.WaitGroup, in <-chan string, out chan<
 	}
 }
 
+func collect(results <-chan Result, out string) error {
+	report := Report{
+		StatusCounts: make(map[int]int),
+	}
+	for result := range results {
+		report.StatusCounts[result.Status]++
+	}
+
+	writer, err := os.Create(out)
+	if err != nil {
+		return fmt.Errorf("cannot create output file: %w", err)
+	}
+	defer writer.Close()
+
+	encoder := json.NewEncoder(writer)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(report); err != nil {
+		return fmt.Errorf("cannot write report: %w", err)
+	}
+	return nil
+}
+
 func main() {
 
 	var (
@@ -106,8 +135,6 @@ func main() {
 	flag.StringVar(&inputPath, "input", "access.log", "Pfad zur einzulesenden Log Datei")
 	flag.StringVar(&outputPath, "output", "report.json", "Pfad zur ausgegebenen JSON Datei")
 	flag.Parse()
-
-	log.Printf("input=%s, output=%s", inputPath, outputPath)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -134,7 +161,8 @@ func main() {
 		close(results)
 	}()
 
-	for result := range results {
-		log.Println(result)
+	err := collect(results, outputPath)
+	if err != nil {
+		log.Fatalf("collect error: %v", err)
 	}
 }
