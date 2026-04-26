@@ -39,6 +39,10 @@ Standardmäßig wird `access.log` im aktuellen Verzeichnis erwartet und nach `re
 
 [Beispiel](access.log)
 
+## Beispiel-Output
+
+[Beispiel](report.example.json)
+
 ## Architektur
 
 Die Verarbeitung läuft als dreistufige Pipeline: ein Producer liest die Logdatei zeilenweise ein, mehrere Worker parsen die Zeilen parallel, und ein Collector aggregiert die Ergebnisse zum Report.
