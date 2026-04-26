@@ -53,7 +53,7 @@ flowchart LR
     B3 --> C
 ```
 
-Der Producer öffnet die Datei und schickt jede Zeile in den `lines`-Channel. Sobald die Datei vollständig gelesen ist, wird der Channel geschlossen — das signalisiert den Workern das Ende der Eingabe.
+Der Producer öffnet die Datei und schickt jede Zeile in den `lines`-Channel. Sobald die Datei vollständig gelesen ist, wird der Channel geschlossen. Das signalisiert den Workern das Ende der Eingabe.
 
 Fünf Worker lesen parallel aus `lines`, parsen jede Zeile mit `parseLine` und schicken das Ergebnis in den `results`-Channel. Fehlerhafte Zeilen werden geloggt und übersprungen, ohne die Pipeline zu stoppen.
 
@@ -79,7 +79,7 @@ go test ./...
 go test -race ./...
 ```
 
-Für Linting wird [golangci-lint](https://golangci-lint.run) empfohlen — das Pendant zu ruff im Schwester-Projekt:
+Für Linting wird [golangci-lint](https://golangci-lint.run) empfohlen, das Pendant zu ruff im Schwester-Projekt:
 
 ```bash
 golangci-lint run
@@ -89,4 +89,4 @@ Installation siehe Projektseite. Eine Konfiguration über `.golangci.yml` ist op
 
 ## Lizenz
 
-MIT — siehe [LICENSE](LICENSE.md).
+MIT - siehe [LICENSE](LICENSE.md).
